@@ -76,7 +76,7 @@
           "y": 0
         }
       },
-      "type": "start"
+      "type": 1
     },
     {
       "blocks": [],
@@ -100,7 +100,7 @@
           "y": 0
         }
       },
-      "type": "code"
+      "type": 5
     },
     {
       "blocks": [],
@@ -124,7 +124,7 @@
           "y": 0
         }
       },
-      "type": "llm"
+      "type": 3
     },
     {
       "blocks": [],
@@ -147,7 +147,7 @@
           "y": 0
         }
       },
-      "type": "end"
+      "type": 2
     },
     {
       "blocks": [],
@@ -195,7 +195,7 @@
           "y": 300
         }
       },
-      "type": "start"
+      "type": 1
     },
     {
       "blocks": [],
@@ -219,7 +219,7 @@
           "y": 300
         }
       },
-      "type": "knowledge"
+      "type": 4
     },
     {
       "blocks": [],
@@ -243,7 +243,7 @@
           "y": 300
         }
       },
-      "type": "llm"
+      "type": 3
     },
     {
       "blocks": [],
@@ -268,7 +268,7 @@
           "y": 300
         }
       },
-      "type": "loop"
+      "type": 4
     },
     {
       "blocks": [],
@@ -292,7 +292,7 @@
           "y": 300
         }
       },
-      "type": "code"
+      "type": 5
     },
     {
       "blocks": [],
@@ -315,7 +315,7 @@
           "y": 300
         }
       },
-      "type": "end"
+      "type": 2
     }
   ],
   "versions": {}
