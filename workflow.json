@@ -1,0 +1,322 @@
+{
+  "edges": [
+    {
+      "sourceNodeID": "100001",
+      "sourcePortID": "",
+      "targetNodeID": "100002"
+    },
+    {
+      "sourceNodeID": "100002",
+      "sourcePortID": "",
+      "targetNodeID": "100003"
+    },
+    {
+      "sourceNodeID": "100003",
+      "sourcePortID": "",
+      "targetNodeID": "900001"
+    },
+    {
+      "sourceNodeID": "200001",
+      "sourcePortID": "",
+      "targetNodeID": "200002"
+    },
+    {
+      "sourceNodeID": "200002",
+      "sourcePortID": "",
+      "targetNodeID": "200003"
+    },
+    {
+      "sourceNodeID": "200003",
+      "sourcePortID": "",
+      "targetNodeID": "200004"
+    },
+    {
+      "sourceNodeID": "200004",
+      "sourcePortID": "",
+      "targetNodeID": "200005"
+    },
+    {
+      "sourceNodeID": "200005",
+      "sourcePortID": "",
+      "targetNodeID": "900002"
+    }
+  ],
+  "nodes": [
+    {
+      "blocks": [],
+      "data": {
+        "nodeMeta": {
+          "description": "输入抖音视频链接",
+          "icon": "",
+          "subTitle": "阶段一：风格蒸馏",
+          "title": "开始"
+        },
+        "outputs": [
+          {
+            "description": "抖音视频链接",
+            "name": "video_url",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "trigger_parameters": [
+          {
+            "description": "抖音视频链接",
+            "name": "video_url",
+            "required": true,
+            "type": "string"
+          }
+        ]
+      },
+      "edges": null,
+      "id": "100001",
+      "meta": {
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      "type": "start"
+    },
+    {
+      "blocks": [],
+      "data": {
+        "nodeMeta": {
+          "description": "下载视频并提取视觉/音频特征",
+          "icon": "",
+          "subTitle": "代码节点",
+          "title": "视频分析"
+        },
+        "inputs": {
+          "code": "\nimport json\nimport subprocess\nimport tempfile\nimport os\nfrom pathlib import Path\n\ndef main(video_url: str) -> dict:\n    with tempfile.TemporaryDirectory() as tmpdir:\n        video_path = os.path.join(tmpdir, \"video.mp4\")\n        audio_path = os.path.join(tmpdir, \"audio.wav\")\n        frames_dir = os.path.join(tmpdir, \"frames\")\n        os.makedirs(frames_dir)\n        \n        # 下载视频\n        subprocess.run([\"yt-dlp\", \"-o\", video_path, \"--no-warning\", video_url], check=True)\n        \n        # 提取音频\n        subprocess.run([\n            \"ffmpeg\", \"-i\", video_path, \"-vn\", \"-acodec\", \"pcm_s16le\",\n            \"-ar\", \"16000\", \"-ac\", \"1\", audio_path, \"-y\"\n        ], check=True, capture_output=True)\n        \n        # 提取帧\n        subprocess.run([\n            \"ffmpeg\", \"-i\", video_path, \"-vf\", \"fps=1\",\n            f\"{frames_dir}/frame_%03d.jpg\", \"-y\"\n        ], check=True, capture_output=True)\n        \n        # 分析视觉特征\n        visual_params = analyze_visual(frames_dir)\n        \n        # 分析音频特征\n        audio_params = analyze_audio(audio_path)\n        \n        # 分析场景\n        scene_params = analyze_scenes(frames_dir)\n    \n    return {\n        \"visual\": visual_params,\n        \"audio\": audio_params,\n        \"scenes\": scene_params\n    }\n\ndef analyze_visual(frames_dir: str) -> dict:\n    from PIL import Image\n    import numpy as np\n    \n    frames = sorted(Path(frames_dir).glob(\"*.jpg\"))\n    r_list, g_list, b_list = [], [], []\n    dark_ratios = []\n    warm_ratios = []\n    \n    for frame_path in frames:\n        img = Image.open(frame_path)\n        arr = np.array(img.resize((50, 50)))\n        r_list.append(arr[:,:,0].mean())\n        g_list.append(arr[:,:,1].mean())\n        b_list.append(arr[:,:,2].mean())\n        \n        flat = arr.reshape(-1, 3)\n        dark_count = (flat.max(axis=1) < 60).sum()\n        dark_ratios.append(dark_count / len(flat))\n        \n        warm_count = (flat[:,0] > flat[:,2] + 30).sum()\n        warm_ratios.append(warm_count / len(flat))\n    \n    avg_r = sum(r_list) / len(r_list)\n    avg_g = sum(g_list) / len(g_list)\n    avg_b = sum(b_list) / len(b_list)\n    brightness = (avg_r + avg_g + avg_b) / 3\n    \n    tone = classify_color_tone(avg_r, avg_g, avg_b)\n    \n    return {\n        \"tone\": tone,\n        \"avg_rgb\": {\"R\": int(avg_r), \"G\": int(avg_g), \"B\": int(avg_b)},\n        \"brightness\": f\"{brightness:.0f} (brightness_level_{int(brightness//20)})\",\n        \"dark_pixel_ratio\": f\"{sum(dark_ratios)/len(dark_ratios)*100:.0f}%\",\n        \"warm_pixel_ratio\": f\"{sum(warm_ratios)/len(warm_ratios)*100:.0f}%\"\n    }\n\ndef classify_color_tone(r: float, g: float, b: float) -> str:\n    warmth = r - b\n    if warmth > 40:\n        if r > 60:\n            return \"暗琥珀色调，暖色系 R>G>B\"\n        return \"暖褐色调\"\n    elif warmth > 15:\n        return \"中性偏暖色调\"\n    elif warmth > -15:\n        return \"中性色调\"\n    else:\n        return \"冷色调\"\n\ndef analyze_audio(audio_path: str) -> dict:\n    import wave, struct, math\n    import numpy as np\n    \n    with wave.open(audio_path, 'r') as wf:\n        sr = wf.getframerate()\n        nframes = wf.getnframes()\n        raw = wf.readframes(nframes)\n        samples = struct.unpack(f'{nframes}h', raw)\n    \n    samples_np = np.array(samples, dtype=float)\n    \n    fft = np.fft.rfft(samples_np)\n    freqs = np.fft.rfftfreq(len(samples_np), 1/sr)\n    magnitudes = np.abs(fft)\n    \n    centroid = np.sum(freqs * magnitudes) / np.sum(magnitudes)\n    \n    mask = (freqs > 80) & (freqs < 300)\n    speech_fft = np.where(mask, magnitudes, 0)\n    fundamental = freqs[np.argmax(speech_fft)]\n    \n    chunk_size = sr\n    zcr_values = []\n    for i in range(nframes // chunk_size):\n        chunk = samples[i*chunk_size:(i+1)*chunk_size]\n        zcr = sum(1 for j in range(1, len(chunk)) if (chunk[j-1]>0) != (chunk[j]>0)) / len(chunk)\n        zcr_values.append(zcr)\n    \n    avg_zcr = sum(zcr_values) / len(zcr_values)\n    \n    pitch_category = \"偏高男声\" if 200 < fundamental < 280 else (\"男声\" if fundamental < 200 else \"女声\")\n    \n    return {\n        \"pitch\": f\"~{fundamental:.0f}Hz ({pitch_category})\",\n        \"spectral_centroid\": f\"{centroid:.0f}Hz\",\n        \"avg_zero_crossing_rate\": f\"{avg_zcr:.3f}\",\n        \"pace\": \"舒缓平稳\" if avg_zcr < 0.12 else \"节奏中等\"\n    }\n\ndef analyze_scenes(frames_dir: str) -> dict:\n    from PIL import Image\n    \n    frames = sorted(Path(frames_dir).glob(\"*.jpg\"))\n    brightnesses = []\n    for f in frames:\n        img = Image.open(f)\n        arr = list(img.resize((50,50).getdata()))\n        b = sum(max(c[:3]) for c in arr) / len(arr)\n        brightnesses.append(b)\n    \n    transitions = []\n    for i in range(1, len(brightnesses)):\n        diff = brightnesses[i] - brightnesses[i-1]\n        if abs(diff) > 25:\n            transitions.append({\"frame\": i, \"type\": \"黑场过渡\" if min(brightnesses[i], brightnesses[i-1]) < 15 else \"明暗过渡\"})\n    \n    black_frames = [i for i, b in enumerate(brightnesses) if b < 15]\n    scene_count = len(black_frames) + 1 if black_frames else 1\n    \n    return {\n        \"scene_count\": scene_count,\n        \"transitions\": transitions,\n        \"transition_style\": \"黑场淡入淡出\" if black_frames else \"直接切换\"\n    }\n",
+          "language": "python3"
+        }
+      },
+      "edges": null,
+      "id": "100002",
+      "meta": {
+        "position": {
+          "x": 300,
+          "y": 0
+        }
+      },
+      "type": "code"
+    },
+    {
+      "blocks": [],
+      "data": {
+        "nodeMeta": {
+          "description": "将技术参数翻译成艺术风格描述",
+          "icon": "",
+          "subTitle": "LLM 节点",
+          "title": "风格翻译"
+        },
+        "inputs": {
+          "prompt": "你是视频风格翻译专家，擅长将技术分析参数转化为艺术化的风格描述。\n\n## 任务\n将以下视频风格参数转化为：\n1. 风格描述（中文，感性表达）\n2. 文生视频提示词前缀（英文，用于即梦等模型）\n3. TTS音色建议\n\n## 输入：风格参数JSON\n{{100002.output}}\n\n## 输出格式（JSON）\n\n```json\n{\n  \"style_description\": \"一段中文风格描述，用于人阅读\",\n  \"prompt_prefix\": \"英文提示词前缀，每个视频段落都加上\",\n  \"negative_prompt\": \"不希望出现的元素，英文\",\n  \"tts_suggestion\": {\n    \"voice_type\": \"音色类型建议\",\n    \"speed\": 0.8,\n    \"pitch_adjustment\": \"+1\",\n    \"notes\": \"音色选择说明\"\n  }\n}\n```\n\n## 翻译原则\n- **色调映射**：R>G>B暖色→amber/golden, R≈B冷色→cool/silver, 高饱和→vivid, 低饱和→muted\n- **亮度映射**：<40→low-key/dark/candlelight, 40-80→medium, >80→high-key/bright\n- **转场映射**：黑场过渡→fade to black, 淡入淡出→soft fade\n- **氛围映射**：舒缓+低频→zen/contemplative, 快节奏+高频→dynamic/energetic\n- **音高映射**：男声<180Hz→deep male, 180-250Hz→moderate male, >250Hz→light/female",
+          "model": "doubao-pro"
+        }
+      },
+      "edges": null,
+      "id": "100003",
+      "meta": {
+        "position": {
+          "x": 600,
+          "y": 0
+        }
+      },
+      "type": "llm"
+    },
+    {
+      "blocks": [],
+      "data": {
+        "nodeMeta": {
+          "description": "输出风格档案",
+          "icon": "",
+          "subTitle": "阶段一结束",
+          "title": "结束"
+        },
+        "inputs": {
+          "output": "{{100003.output}}"
+        }
+      },
+      "edges": null,
+      "id": "900001",
+      "meta": {
+        "position": {
+          "x": 900,
+          "y": 0
+        }
+      },
+      "type": "end"
+    },
+    {
+      "blocks": [],
+      "data": {
+        "nodeMeta": {
+          "description": "输入字幕文本和风格档案",
+          "icon": "",
+          "subTitle": "阶段二：视频生成",
+          "title": "开始"
+        },
+        "outputs": [
+          {
+            "description": "字幕文本",
+            "name": "subtitle_text",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "风格档案ID",
+            "name": "style_id",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "trigger_parameters": [
+          {
+            "description": "字幕文本",
+            "name": "subtitle_text",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "风格档案ID",
+            "name": "style_id",
+            "required": false,
+            "type": "string"
+          }
+        ]
+      },
+      "edges": null,
+      "id": "200001",
+      "meta": {
+        "position": {
+          "x": 0,
+          "y": 300
+        }
+      },
+      "type": "start"
+    },
+    {
+      "blocks": [],
+      "data": {
+        "nodeMeta": {
+          "description": "读取风格档案",
+          "icon": "",
+          "subTitle": "知识库节点",
+          "title": "加载风格档案"
+        },
+        "inputs": {
+          "knowledge_base": "xuanxue_style_profiles",
+          "query": "id = {{200001.style_id}}"
+        }
+      },
+      "edges": null,
+      "id": "200002",
+      "meta": {
+        "position": {
+          "x": 300,
+          "y": 300
+        }
+      },
+      "type": "knowledge"
+    },
+    {
+      "blocks": [],
+      "data": {
+        "nodeMeta": {
+          "description": "将字幕拆分为分镜并生成视频提示词",
+          "icon": "",
+          "subTitle": "LLM 节点",
+          "title": "字幕拆分"
+        },
+        "inputs": {
+          "prompt": "你是玄学短视频分镜导演，负责将旁白字幕拆分为分镜并生成画面描述。\n\n## 输入\n- **字幕文本**: {{200001.subtitle_text}}\n- **风格档案**: {{200002.output}}\n\n## 任务\n1. 将字幕按语义/节奏自然拆分为 **3-5个段落**\n2. 为每段生成英文**视频画面提示词**（结合风格档案的prompt_prefix）\n3. 每段旁白控制在**6-10秒**朗读量（约15-40个字）\n\n## 输出格式（JSON数组）\n\n```json\n[\n  {\n    \"segment_index\": 1,\n    \"subtitle_text\": \"第一段字幕原文\",\n    \"video_prompt\": \"dark amber tones... an elderly Taoist master meditating...\",\n    \"estimated_duration\": 8\n  }\n]\n```",
+          "model": "doubao-pro"
+        }
+      },
+      "edges": null,
+      "id": "200003",
+      "meta": {
+        "position": {
+          "x": 600,
+          "y": 300
+        }
+      },
+      "type": "llm"
+    },
+    {
+      "blocks": [],
+      "data": {
+        "nodeMeta": {
+          "description": "并行生成视频片段和TTS音频",
+          "icon": "",
+          "subTitle": "循环节点",
+          "title": "并行生成"
+        },
+        "inputs": {
+          "loop_type": "parallel",
+          "max_parallel": 5,
+          "items": "{{200003.output}}"
+        }
+      },
+      "edges": null,
+      "id": "200004",
+      "meta": {
+        "position": {
+          "x": 900,
+          "y": 300
+        }
+      },
+      "type": "loop"
+    },
+    {
+      "blocks": [],
+      "data": {
+        "nodeMeta": {
+          "description": "合成最终视频",
+          "icon": "",
+          "subTitle": "代码节点",
+          "title": "视频合成"
+        },
+        "inputs": {
+          "code": "\nimport subprocess\nimport tempfile\nimport os\nimport urllib.request\n\ndef main(segments: list, style_profile: dict) -> dict:\n    with tempfile.TemporaryDirectory() as tmpdir:\n        output_path = f\"{tmpdir}/output.mp4\"\n        part_files = []\n        \n        for i, seg in enumerate(segments):\n            video_path = download_file(seg[\"video_url\"], f\"{tmpdir}/vid_{i}.mp4\")\n            audio_path = download_file(seg[\"audio_url\"], f\"{tmpdir}/aud_{i}.wav\")\n            \n            trimmed = trim_video(video_path, seg[\"audio_duration\"], f\"{tmpdir}/trim_{i}.mp4\")\n            with_audio = merge_audio(trimmed, audio_path, f\"{tmpdir}/waud_{i}.mp4\")\n            with_sub = burn_subtitle(\n                with_audio,\n                seg[\"subtitle_text\"],\n                style_profile.get(\"visual\", {}).get(\"subtitle_style\", {}),\n                seg[\"audio_duration\"],\n                f\"{tmpdir}/wsub_{i}.mp4\"\n            )\n            part_files.append(with_sub)\n            \n            if i < len(segments) - 1:\n                transition_dur = style_profile.get(\"visual\", {}).get(\"transition_duration\", 0.5)\n                black = create_black_frame(f\"{tmpdir}/black_{i}.mp4\", transition_dur)\n                part_files.append(black)\n        \n        concat_file = f\"{tmpdir}/concat.txt\"\n        with open(concat_file, 'w') as f:\n            for part in part_files:\n                f.write(f\"file '{part}'\\n\")\n        \n        subprocess.run([\n            \"ffmpeg\", \"-f\", \"concat\", \"-safe\", \"0\",\n            \"-i\", concat_file, \"-c\", \"copy\", output_path, \"-y\"\n        ], check=True, capture_output=True)\n        \n        return {\"output_video_url\": output_path}\n\ndef download_file(url: str, dest: str) -> str:\n    urllib.request.urlretrieve(url, dest)\n    return dest\n\ndef trim_video(video_path: str, duration: float, output: str) -> str:\n    subprocess.run([\n        \"ffmpeg\", \"-i\", video_path, \"-t\", str(duration),\n        \"-c:v\", \"libx264\", \"-c:a\", \"aac\", output, \"-y\"\n    ], check=True, capture_output=True)\n    return output\n\ndef merge_audio(video_path: str, audio_path: str, output: str) -> str:\n    subprocess.run([\n        \"ffmpeg\", \"-i\", video_path, \"-i\", audio_path,\n        \"-c:v\", \"copy\", \"-c:a\", \"aac\", \"-map\", \"0:v:0\", \"-map\", \"1:a:0\",\n        \"-shortest\", output, \"-y\"\n    ], check=True, capture_output=True)\n    return output\n\ndef burn_subtitle(video_path: str, text: str, style: dict, duration: float, output: str) -> str:\n    font_size = style.get(\"font_size\", \"large\")\n    color = style.get(\"color\", \"white\")\n    y_offset = style.get(\"y_offset\", \"75%\")\n    \n    fontsize_map = {\"small\": 20, \"medium\": 28, \"large\": 36}\n    fs = fontsize_map.get(font_size, 28)\n    \n    safe_text = text.replace(\"'\", \"'\\\\''\").replace(\":\", \"\\\\:\")\n    \n    drawtext = (\n        f\"drawtext=text='{safe_text}'\"\n        f\":fontsize={fs}:fontcolor={color}\"\n        f\":x=(w-text_w)/2:y=h*{y_offset.rstrip('%')}/100\"\n    )\n    \n    subprocess.run([\n        \"ffmpeg\", \"-i\", video_path,\n        \"-vf\", drawtext,\n        \"-c:a\", \"copy\", output, \"-y\"\n    ], check=True, capture_output=True)\n    return output\n\ndef create_black_frame(output: str, duration: float) -> str:\n    subprocess.run([\n        \"ffmpeg\", \"-f\", \"lavfi\", \"-i\",\n        f\"color=c=black:s=720x1280:d={duration}:r=30\",\n        \"-f\", \"lavfi\", \"-i\", f\"anullsrc=r=44100:cl=stereo\",\n        \"-t\", str(duration), output, \"-y\"\n    ], check=True, capture_output=True)\n    return output\n",
+          "language": "python3"
+        }
+      },
+      "edges": null,
+      "id": "200005",
+      "meta": {
+        "position": {
+          "x": 1200,
+          "y": 300
+        }
+      },
+      "type": "code"
+    },
+    {
+      "blocks": [],
+      "data": {
+        "nodeMeta": {
+          "description": "输出最终视频",
+          "icon": "",
+          "subTitle": "阶段二结束",
+          "title": "结束"
+        },
+        "inputs": {
+          "output": "{{200005.output_video_url}}"
+        }
+      },
+      "edges": null,
+      "id": "900002",
+      "meta": {
+        "position": {
+          "x": 1500,
+          "y": 300
+        }
+      },
+      "type": "end"
+    }
+  ],
+  "versions": {}
+}
