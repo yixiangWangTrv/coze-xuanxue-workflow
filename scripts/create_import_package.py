@@ -45,10 +45,9 @@ def create_coze_package(workflow_json_path: str, output_path: str, workflow_name
     # 元数据
     header.extend(b'\x02\x27\x00\x04\x1c\x01\x00\x00\x00')
     
-    # 文件名 (带长度前缀)
+    # 文件名 (直接拼接，无长度前缀)
     filename = f"{workflow_name}.json"
     filename_bytes = filename.encode('utf-8')
-    header.extend(struct.pack('<I', len(filename_bytes)))
     header.extend(filename_bytes)
     
     # JSON 内容
