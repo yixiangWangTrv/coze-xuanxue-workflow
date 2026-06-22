@@ -22,14 +22,10 @@ def create_coze_package(workflow_json_path: str, output_path: str, workflow_name
     """
     # 读取工作流 JSON
     with open(workflow_json_path, 'r', encoding='utf-8') as f:
-        workflow_data = f.read()
+        workflow_obj = json.load(f)
     
-    # 验证 JSON 格式
-    try:
-        json.loads(workflow_data)
-    except json.JSONDecodeError as e:
-        print(f"错误: 无效的 JSON 格式 - {e}")
-        sys.exit(1)
+    # 转换为紧凑格式（无换行无缩进）
+    workflow_data = json.dumps(workflow_obj, ensure_ascii=False, separators=(',', ':'))
     
     # 构建内部文件头
     # 格式: 二进制元数据 + "workflow" + 元数据 + 文件名 + JSON
