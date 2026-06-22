@@ -1,0 +1,46 @@
+{
+  "name": "净尘隐者",
+  "douyin_id": "xsfzb888",
+  "created_from_video": "7648238431265154403",
+  "created_at": "2026-06-18",
+  "style_description": "暗金色调的禅意氛围，如同古寺烛火前的沉思。画面极暗，暖色光影营造神秘而宁静的氛围，仿佛古老智慧的传承者在低语。",
+  "prompt_prefix": "dark amber tones, candle-like warm glow, low-key cinematic lighting, zen spiritual atmosphere, soft shadows, ancient Chinese aesthetic, mystical fog, 9:16 vertical composition",
+  "negative_prompt": "modern elements, bright lighting, neon colors, text watermarks, low quality, blurry, cartoon style, anime",
+  "visual": {
+    "tone": "暗琥珀色调，暖色系 R>G>B",
+    "avg_rgb": {"R": 58, "G": 46, "B": 31},
+    "brightness_level": "极暗 (45)",
+    "dark_pixel_ratio": "65%",
+    "warm_pixel_ratio": "28%",
+    "transition_style": "黑场淡入淡出",
+    "transition_duration": 0.5,
+    "subtitle_position": "bottom_center",
+    "subtitle_style": {
+      "color": "white",
+      "outline": "none",
+      "font_size": "large",
+      "y_offset": "75%"
+    },
+    "fps": 30,
+    "aspect_ratio": "9:16",
+    "resolution": "720x1280"
+  },
+  "audio": {
+    "pitch": "~237Hz (偏高男声)",
+    "spectral_centroid": "1834Hz",
+    "pace": "舒缓平稳",
+    "energy_distribution": "中频为主，低频扎实，高频少"
+  },
+  "tts_settings": {
+    "voice_type": "深沉男声",
+    "specific_voice_id": "需根据扣子TTS可用音色选择最接近的",
+    "speed": 0.85,
+    "pitch_adjustment": "+1",
+    "notes": "选择略带沧桑感的男声，语速舒缓，与禅意氛围匹配"
+  },
+  "video_generation_settings": {
+    "duration_range": [6, 10],
+    "style": "写实/电影",
+    "model": "即梦/Jimeng"
+  }
+}
