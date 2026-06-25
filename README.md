@@ -2,16 +2,24 @@
 
 ## 一键导入（推荐）
 
-### 第一步：下载导入包
+### 第一步：生成导入包
 
-下载 `dist/抖音玄学视频蒸馏工作流.zip` 文件。
+运行以下命令生成可导入的 ZIP 文件：
+
+```bash
+python3 generate_coze_zip.py
+```
+
+这会生成两个工作流 ZIP 文件：
+- `Workflow-xuanxue_style_distill-draft-0001.zip` - 阶段一：风格蒸馏
+- `Workflow-xuanxue_video_gen-draft-0001.zip` - 阶段二：视频生成
 
 ### 第二步：导入到 Coze
 
 1. 登录 [Coze 官网](https://www.coze.cn/space)，进入个人空间
 2. 在左侧菜单选择 **"资源库"**
 3. 点击右上角 **"导入"** 按钮
-4. 上传 `抖音玄学视频蒸馏工作流.zip` 文件
+4. 分别上传两个 ZIP 文件
 5. 点击 **"导入"** 确认
 
 导入成功后，工作流会出现在资源库列表中。
